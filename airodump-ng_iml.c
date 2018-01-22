@@ -29,8 +29,6 @@ int main(int argc, char *argv[]){
 	int pcnt = 0;
 	int i,j,ck;
 	int bc=0, pb=0, dt=0;
-	
-
 
 	if(argc == 1){
 		printf("No Interface\n");
@@ -48,18 +46,11 @@ int main(int argc, char *argv[]){
 
 	/* Grab a packet */
 	while(1){
-		nextck = pcap_next_ex(handle, &header, &packet);
+		nextck = pcap_next_ex(handle, &header, &packet);	//receive packet
 		if(nextck == 0) continue;
 		else if(nextck == -1 || nextck == -2) break;
-		/*printf("--------------------------------------------------------------\n");
-		for(i=0;i<48;i++){
-			printf("%02x ",packet[i]);
-			if((i+1)%16==0)
-				printf("\n");
-			else if((i+1)%8 == 0)
-				printf("   ");
-		}printf("\n");*/
-		rh = (struct ieee80211_radiotap_header *)packet;
+
+		rh = (struct ieee80211_radiotap_header *)packet;	//header
 		packet += 24;
 		ih = (struct ieee80211_header *)packet;
 		packet += 24;
@@ -73,12 +64,12 @@ int main(int argc, char *argv[]){
 		else
 			continue;
 
-		switch(ih->type){
-			case PROBE_RESPONSE :
+		switch(ih->type){					// PROBE RESPONSE only
+			case PROBE_RESPONSE :			
 			pb++;
 			for(ck=0,i=0;i<pcnt;i++){
 				if(!memcmp(ih->mac3,ptap[i].bssid,6) 
-					&& !memcmp(ih->mac1,ptap[i].station,6)){
+					&& !memcmp(ih->mac1,ptap[i].station,6)){ 
 					ck = 1;
 					ptap[i].pwr = rh->signal;
 					ptap[i].frames++;
