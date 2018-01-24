@@ -6,7 +6,9 @@
 #include <pcap/pcap.h>
 #include <pcap.h>
 #include "airodump-ng_iml.h"
-
+#include <iostream>
+#include <map>
+using namespace std;
 int main(int argc, char *argv[]){
 	
 		
@@ -22,12 +24,21 @@ int main(int argc, char *argv[]){
 	struct tkip_parameters *tp;
 	struct fixed_paprmeters *fp;
 	
-	struct beacon btap[100];
-	struct probe ptap[100];
+	//struct beacon btap[100];
+	//struct probe ptap[100];
+	struct beacon new_b;
+	struct probe new_p;
+	map<size_t, struct beacon> btap;
+	map<size_t, struct beacon>:: iterator biter;
+	map<size_t, struct probe> ptap;
+	map<size_t, struct probe>:: iterator piter;
+	uint8_t bsst[12];
+
 	int bcnt = 0;
 	int pcnt = 0;
 	int i,j,ck;
 	int bc=0, pb=0, dt=0;
+	size_t hsh;
 
 	if(argc == 1){
 		printf("No Interface\n");
@@ -66,83 +77,88 @@ int main(int argc, char *argv[]){
 		switch(ih->type){					// PROBE RESPONSE only
 			case PROBE_RESPONSE :			
 			pb++;
-			for(ck=0,i=0;i<pcnt;i++){
-				if(!memcmp(ih->mac3,ptap[i].bssid,6) 
-					&& !memcmp(ih->mac1,ptap[i].station,6)){ 
-					ck = 1;
-					ptap[i].pwr = rh->signal;
-					ptap[i].frames++;
-					break;
-				}
+			memcpy(bsst,ih->mac3,6);
+			memcpy(bsst+6,ih->mac1,6);
+			hsh = hashl(bsst);
+			piter = ptap.find(hsh);
+
+			if(piter != ptap.end()){
+				new_p = piter->second;
+				new_p.pwr = rh->signal;
+				new_p.frames++;
+
 			}
-			if(!ck){
-				memcpy(ptap[pcnt].bssid,ih->mac3,6);
-				memcpy(ptap[pcnt].station,ih->mac1,6);
-				ptap[pcnt].pwr = rh->signal;
-				ptap[pcnt].frames = 1;
-				pcnt++;
+			else{	
+				memcpy(new_p.bssid,ih->mac3,6);
+				memcpy(new_p.station,ih->mac1,6);
+				new_p.pwr = rh->signal;
+				new_p.frames = 1;
 			}
+			ptap[hsh] = new_p;
+
 			break;
 
 
 			case BEACON_FRAME:
 			bc++;
-			for(ck=0,i=0;i<bcnt;i++){
-				if(!memcmp(btap[i].essid,packet+2,btap[i].eslen)
-					&& !memcmp(btap[i].bssid,ih->mac3,6)){
-					ck = 1;
-					btap[i].pwr = rh->signal;
-					btap[i].beacons++;
-					break;
-				}
+			hsh = hashl(ih->mac3);
+			biter = btap.find(hsh);
+
+			if(biter != btap.end()){
+				new_b = biter->second;
+				new_b.pwr = rh->signal;
+				new_b.beacons++;
 			}
-			if(ck==0){
-				btap[bcnt].eslen = packet[1];
-				memcpy(btap[i].essid,packet+2,btap[bcnt].eslen);
-				memcpy(btap[i].bssid,ih->mac3,6);
-				btap[bcnt].pwr = rh->signal;
-				btap[bcnt].beacons = 1;
-				btap[bcnt].data = 0;
-				packet += (btap[bcnt].eslen + 1) + 10 + 3;
-				btap[bcnt].channel = *packet; 
-				bcnt++;
+			else{
+				new_b.eslen = packet[1];
+				memcpy(new_b.essid,packet+2,new_b.eslen);
+				memcpy(new_b.bssid,ih->mac3,6);
+				new_b.pwr = rh->signal;
+				new_b.beacons = 1;
+				new_b.data = 0;
+				packet += (new_b.eslen + 1) + 10 + 3;
+				new_b.channel = *packet; 
 			}
+			btap[hsh] = new_b;
 			break;
 
 
 			case DATA_FRAME:
 			dt++;
-			for(i=0;i<bcnt;i++)
-				if(!memcmp(ih->mac3,btap[i].bssid,6)){
-					btap[i].data++;
-					break;
-				}		
+			hsh = hashl(ih->mac3);
+			biter = btap.find(hsh);
+
+			if(biter != btap.end()){
+				new_b = biter->second;
+				new_b.data++;
+				btap[hsh] = new_b;
+			}		
 			break;
 		}
-		clear();
+		clearrr();
 		printf("				AIRODUMP-NG?\n\n");
 		printf("BEACON: %d\n",bc);
 		printf("DATA: %d\n\n",dt);
 		printf("BSSID                 POWER     beacons      #data       channel      essid\n");
 		printf("-------------------------------------------------------------------------------\n");
-		for(i=0;i<bcnt;i++){
-			for(j=0;j<6;j++) printf("%02x:",btap[i].bssid[j]);
-			printf("      -%d  ",256-(btap[i].pwr));
-			printf("%10d ",btap[i].beacons);
-			printf("%10d   ",btap[i].data);
-			printf("%10d       ",btap[i].channel);
-			for(j=0;j<btap[i].eslen;j++) printf("%c",btap[i].essid[j]);
+		for(biter=btap.begin();biter != btap.end();biter++){
+			for(j=0;j<6;j++) printf("%02x:",biter->second.bssid[j]);
+			printf("      -%d  ",256-(biter->second.pwr));
+			printf("%10d ",biter->second.beacons);
+			printf("%10d   ",biter->second.data);
+			printf("%10d       ",biter->second.channel);
+			for(j=0;j<biter->second.eslen;j++) printf("%c",biter->second.essid[j]);
 			printf("\n");
 		}
 		printf("\n\nPROBE: %d\n\n",pb);
 		printf("BSSID                STATION                   POWER       FRAMES\n");
 		printf("--------------------------------------------------------------------------------\n");
-		for(i=0;i<pcnt;i++){
-			for(j=0;j<6;j++) printf("%02x:",ptap[i].bssid[j]);
+		for(piter=ptap.begin(); piter != ptap.end(); piter++){
+			for(j=0;j<6;j++) printf("%02x:",piter->second.bssid[j]);
 			printf("   ");
-			for(j=0;j<6;j++) printf("%02x:",ptap[i].station[j]);
-			printf("          -%d   ",256-(ptap[i].pwr));
-			printf("%10d   ",ptap[i].frames);
+			for(j=0;j<6;j++) printf("%02x:",piter->second.station[j]);
+			printf("          -%d   ",256-(piter->second.pwr));
+			printf("%10d   ",piter->second.frames);
 			printf("\n");
 		}
 		printf("--------------------------------------------------------------------------------\n");

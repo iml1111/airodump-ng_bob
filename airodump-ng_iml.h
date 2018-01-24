@@ -7,30 +7,41 @@
 #include <pcap/pcap.h>
 
 #define PROBE_RESPONSE 0x50
-#define PROBE_REQUEST 0x40
 #define BEACON_FRAME 0x80
-#define DATA_FRAME 0x08 //????
+#define DATA_FRAME 0x08 
 
-#define clear() printf("\033[H\033[J")
+#define clearrr() printf("\033[H\033[J")
+
+size_t hashl(uint8_t *input){
+	const int ret_size = 32;
+	size_t ret = 0x555555;
+	const int per_char = 7;
+
+	while(*input){
+		ret ^= *input++;
+		ret = ((ret << per_char) | ret >> (ret_size - per_char));
+	}
+	return ret;
+}
 
 struct beacon {				
 
 	char essid[256];
-	u_int8_t eslen;
-	u_int8_t bssid[6];
-	u_int8_t pwr;
+	uint8_t eslen;
+	uint8_t bssid[6];
+	uint8_t pwr;
 	int beacons;
 	int data;
-	u_int8_t channel;
+	uint8_t channel;
 	// Encryption?
 
 } __attribute__((__packed__));
 
 struct probe {	
 	
-	u_int8_t bssid[6];
-	u_int8_t station[6];
-	u_int8_t pwr;
+	uint8_t bssid[6];
+	uint8_t station[6];
+	uint8_t pwr;
 	int frames;
 	// Probe??
 	
@@ -40,32 +51,32 @@ struct probe {
 
 struct ieee80211_radiotap_header {                      /*(24bytes)*/
 
-        u_int8_t        version;     
-        u_int8_t        pad;
-        u_int16_t       len;       		  /* entire length */
-        u_int32_t       present1;     
-        u_int32_t       present2;    
-        u_int8_t        flags;
-        u_int8_t        data_rate;
-        u_int16_t       ch;		/*channel freq*/
-        u_int16_t 	ch_flags;
-        u_int8_t 	signal;
-        u_int8_t    reserved;
-        u_int16_t 	rx_flags;
-        u_int8_t 	signal2;
-        u_int8_t 	antenna;
+        uint8_t        version;     
+        uint8_t        pad;
+        uint16_t       len;       		  /* entire length */
+        uint32_t       present1;     
+        uint32_t       present2;    
+        uint8_t        flags;
+        uint8_t        data_rate;
+        uint16_t       ch;		/*channel freq*/
+        uint16_t 	ch_flags;
+        uint8_t 	signal;
+        uint8_t    reserved;
+        uint16_t 	rx_flags;
+        uint8_t 	signal2;
+        uint8_t 	antenna;
 
 } __attribute__((__packed__));
 
 struct ieee80211_header {	                      /*(24bytes)*/
 
-	u_int8_t 	type;
-                           u_int8_t       control;
-	u_int16_t 	duration;
-	u_int8_t 	mac1[6];		
-	u_int8_t	mac2[6];		
-	u_int8_t	mac3[6];
-	u_int16_t 	fs_number;	
+	uint8_t 	type;
+        uint8_t       control;
+	uint16_t 	duration;
+	uint8_t 	mac1[6];		
+	uint8_t		mac2[6];		
+	uint8_t		mac3[6];
+	uint16_t 	fs_number;	
 
 } __attribute__((__packed__));
 
